@@ -137,7 +137,7 @@ pub fn Crc(comptime T: type) -> type {
 }
 
 // Specs below gotten from http://reveng.sourceforge.net/crc-catalogue/all.htm
-const crc8 = comptime blk: {
+pub const crc8 = comptime blk: {
     @setEvalBranchQuota(crcspec_init_backward_cycles);
     break :blk CrcSpec(u8).init(0x07, 0x00, 0x00, false, false);
 };
@@ -146,7 +146,7 @@ test "crc.crc8" {
     assert(crc8.checksum("123456789") == 0xF4);
 }
 
-const crc16 = comptime blk: {
+pub const crc16 = comptime blk: {
     @setEvalBranchQuota(crcspec_init_backward_cycles);
     break :blk CrcSpec(u16).init(0x8005, 0x0000, 0x0000, true, true);
 };
@@ -155,7 +155,7 @@ test "crc.crc16" {
     assert(crc16.checksum("123456789") == 0xBB3D);
 }
 
-const crc32 = comptime blk: {
+pub const crc32 = comptime blk: {
     @setEvalBranchQuota(crcspec_init_backward_cycles);
     break :blk CrcSpec(u32).init(0x04C11DB7, 0xFFFFFFFF, 0xFFFFFFFF, true, true);
 };
@@ -165,7 +165,7 @@ test "crc.crc32" {
 }
 
 // TODO: crc64 failes. Figure out why
-const crc64 = comptime blk: {
+pub const crc64 = comptime blk: {
     @setEvalBranchQuota(crcspec_init_backward_cycles);
     break :blk CrcSpec(u64).init(0x42F0E1EBA9EA3693, 0x0000000000000000, 0x0000000000000000, false, false);
 };
