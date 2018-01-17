@@ -1,101 +1,175 @@
-const std    = @import("std");
-const bits   = @import("bits.zig");
-const debug  = std.debug;
-const math   = std.math;
+const std = @import("std");
+
+const math  = std.math;
+const debug = std.debug;
 
 const assert = debug.assert;
 
-pub const u24 = @IntType(false, 24);
-pub const u40 = @IntType(false, 40);
-pub const u48 = @IntType(false, 48);
-pub const u56 = @IntType(false, 56);
-
-pub fn CrcSpec(comptime T: type) -> type {
-    switch (T) {
-        u8, u16, u24, u32, u40, u48, u56, u64 => {},
-        else => {
-            @compileError("Crc: CrcSpec's type was not [u8, u16, u24, u32, u40, u48, u56, u64]");
+fn reflect(comptime T: type, data: T) -> T {
+    var res : T = 0;
+    var tmp = data;
+    var bit : usize = 0;
+    while (bit < T.bit_count) : (bit += 1) {
+        if (tmp & 1 != 0) {
+            res |= math.shl(T, 1, ((T.bit_count - 1) - bit));
         }
+
+        tmp >>= 1;
     }
 
+    return res;
+}
+
+test "crc.reflect" {
+    assert(reflect(u8, 0b00000001) == 0b10000000);
+    assert(reflect(u8, 0b10000000) == 0b00000001);
+}
+
+// // 256
+// for (res.table) |*entry, i| {
+//     var crc = T(i) << (T.bit_count - 8);
+//
+//     // 256 * 8 * (1)
+//     var bit : usize = 0;
+//     while (bit < 8) : (bit += 1) {
+//         // 256 * 8 * (1 + 1)
+//         if (crc & top_bit != 0) {
+//             // 256 * 8 * (1 + 1 + 3)
+//             crc = math.shl(T, crc, T(1)) ^ polynomial;
+//         } else {
+//             crc = math.shl(T, crc, T(1));
+//         }
+//     }
+//
+//     *entry = crc;
+// }
+pub const crcspec_init_backward_cycles = 256 * 8 * (1 + 1 + 3);
+
+pub fn CrcSpec(comptime T: type) -> type {
     return struct {
         const Self = this;
-        const top_bit : T = 1 << (T.bit_count - 1);
 
-        polynomial:     T,
-        initial_value:  T,
-        reflect_input:  bool,
-        reflect_output: bool,
-        output_xor:     T,
+        polynomial: T,
+        initial_value: T,
+        xor_value: T,
+        reflect_data: bool,
+        reflect_remainder: bool,
+        table: [256]T,
 
-        pub fn done(comptime spec: &const Self, crc: T) -> T {
-            if (spec.reflect_output) {
-                return bits.reflect(T, crc) ^ spec.output_xor;
-            } else {
-                return crc ^ spec.output_xor;
-            }
-        }
-
-        pub fn calc(comptime spec: &const Self, bytes: []const u8) -> T {
-            var crc = spec.initial_value;
-            for (bytes) |byte| {
-                crc = spec.next(crc, byte);
-            }
-
-            return crc;
-        }
-
-        pub fn next(comptime spec: &const Self, crc: T, byte: u8) -> T {
-            // TODO: It seems, that for now we can't generate this table:
-            //       https://github.com/zig-lang/zig/issues/688
-            // const table = comptime {
-            //     @setEvalBranchQuota(256 * 8);
-            //     spec.genTable();
-            // };
-            return (crc >> 8) ^ spec.genTableEntry(@truncate(u8, crc ^ byte));
-        }
-
-        pub fn genTableEntry(comptime spec: &const Self, index: u8) -> T {
-            var entry : T = if (spec.reflect_input) blk: {
-                break :blk math.shl(T, T(bits.reflect(u8, index)), T(T.bit_count - 8));
-            } else blk: {
-                break :blk math.shl(T, T(index), T(T.bit_count - 8));
+        pub fn init(polynomial: T, initial_value: T, xor_value: T, reflect_data: bool, reflect_remainder: bool) -> CrcSpec(T) {
+            var res = Self {
+                .polynomial = polynomial,
+                .initial_value = initial_value,
+                .xor_value = xor_value,
+                .reflect_data = reflect_data,
+                .reflect_remainder = reflect_remainder,
+                .table = undefined,
             };
 
-            var i : u8 = 0;
-            while (i < 8) : (i += 1) {
-                entry = if (entry & 1 != 0) blk: {
-                    break :blk math.shr(T, entry, T(1)) ^ spec.polynomial;
-                } else blk: {
-                    break :blk math.shr(T, entry, T(1));
-                };
-            }
+            const top_bit = T(1) << (T.bit_count - 1);
 
-            if (spec.reflect_input) entry = bits.reflect(T, entry);
-            return entry ^ spec.output_xor;
-        }
+            for (res.table) |*entry, i| {
+                var crc = T(i) << (T.bit_count - 8);
 
-        pub fn genTable(comptime spec: &const Self) -> [256]T {
-            var res : [256]T = undefined;
-            var i : usize = 0;
-            while (i < 256) : (i += 1) {
-                res[i] = spec.genTableEntry(u8(i));
+                var bit : usize = 0;
+                while (bit < 8) : (bit += 1) {
+                    if (crc & top_bit != 0) {
+                        crc = math.shl(T, crc, T(1)) ^ polynomial;
+                    } else {
+                        crc = math.shl(T, crc, T(1));
+                    }
+                }
+
+                *entry = crc;
             }
 
             return res;
         }
+
+        pub fn checksum(self: &const Self, bytes: []const u8) -> T {
+            var crc = self.processer();
+            crc.update(bytes);
+            return crc.final();
+        }
+
+        pub fn processer(self: &const Self) -> Crc(T) {
+            return Crc(T).init(self);
+        }
     };
 }
 
+pub fn Crc(comptime T: type) -> type {
+    return struct {
+        const Self = this;
 
-pub const crc32 = CrcSpec(u32) {
-    .polynomial     = 0x04c11db7,
-    .initial_value  = 0xFFFFFFFF,
-    .reflect_input  = false,
-    .reflect_output = false,
-    .output_xor     = 0xFFFFFFFF,
+        spec: CrcSpec(T),
+        remainder: T,
+
+        pub fn init(spec: &const CrcSpec(T)) -> Self {
+            return Self {
+                .spec = *spec,
+                .remainder = spec.initial_value,
+            };
+        }
+
+        fn reflect_if(comptime K: type, ref: bool, data: K) -> K {
+            if (ref) {
+                return reflect(K, data);
+            } else {
+                return data;
+            }
+        }
+
+        pub fn update(self: &Self, bytes: []const u8) {
+            const reflect_data = self.spec.reflect_data;
+
+            for (bytes) |byte| {
+                const entry = reflect_if(u8, reflect_data, byte) ^ (self.remainder >> (T.bit_count - 8));
+                self.remainder = self.spec.table[entry] ^ math.shl(T, self.remainder, T(8));
+            }
+        }
+
+        pub fn final(self: &const Self) -> T {
+            const reflected = reflect_if(T, self.spec.reflect_remainder, self.remainder);
+            return reflected ^ self.spec.xor_value;
+        }
+    };
+}
+
+// Specs below gotten from http://reveng.sourceforge.net/crc-catalogue/all.htm
+const crc8 = comptime blk: {
+    @setEvalBranchQuota(crcspec_init_backward_cycles);
+    break :blk CrcSpec(u8).init(0x07, 0x00, 0x00, false, false);
+};
+
+test "crc.crc8" {
+    assert(crc8.checksum("123456789") == 0xF4);
+}
+
+const crc16 = comptime blk: {
+    @setEvalBranchQuota(crcspec_init_backward_cycles);
+    break :blk CrcSpec(u16).init(0x8005, 0x0000, 0x0000, true, true);
+};
+
+test "crc.crc16" {
+    assert(crc16.checksum("123456789") == 0xBB3D);
+}
+
+const crc32 = comptime blk: {
+    @setEvalBranchQuota(crcspec_init_backward_cycles);
+    break :blk CrcSpec(u32).init(0x04C11DB7, 0xFFFFFFFF, 0xFFFFFFFF, true, true);
 };
 
 test "crc.crc32" {
-    assert(crc32.done(crc32.calc("CRC-32/BZIP2")) == 0xfc891918);
+    assert(crc32.checksum("123456789") == 0xCBF43926);
+}
+
+// TODO: crc64 failes. Figure out why
+const crc64 = comptime blk: {
+    @setEvalBranchQuota(crcspec_init_backward_cycles);
+    break :blk CrcSpec(u64).init(0x42F0E1EBA9EA3693, 0x0000000000000000, 0x0000000000000000, false, false);
+};
+
+test "crc.crc64" {
+    assert(crc64.checksum("123456789") == 0x6C40DF5F0B497347);
 }
