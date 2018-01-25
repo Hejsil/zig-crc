@@ -5,7 +5,7 @@ const debug = std.debug;
 
 const assert = debug.assert;
 
-fn reflect(comptime T: type, data: T) -> T {
+fn reflect(comptime T: type, data: T) T {
     var res : T = 0;
     var tmp = data;
     var bit : usize = 0;
@@ -45,7 +45,7 @@ test "crc.reflect" {
 // }
 pub const crcspec_init_backward_cycles = 256 * 8 * (1 + 1 + 3);
 
-pub fn CrcSpec(comptime T: type) -> type {
+pub fn CrcSpec(comptime T: type) type {
     return struct {
         const Self = this;
 
@@ -56,7 +56,7 @@ pub fn CrcSpec(comptime T: type) -> type {
         reflect_remainder: bool,
         table: [256]T,
 
-        pub fn init(polynomial: T, initial_value: T, xor_value: T, reflect_data: bool, reflect_remainder: bool) -> CrcSpec(T) {
+        pub fn init(polynomial: T, initial_value: T, xor_value: T, reflect_data: bool, reflect_remainder: bool) CrcSpec(T) {
             var res = Self {
                 .polynomial = polynomial,
                 .initial_value = initial_value,
@@ -86,33 +86,33 @@ pub fn CrcSpec(comptime T: type) -> type {
             return res;
         }
 
-        pub fn checksum(self: &const Self, bytes: []const u8) -> T {
+        pub fn checksum(self: &const Self, bytes: []const u8) T {
             var crc = self.processer();
             crc.update(bytes);
             return crc.final();
         }
 
-        pub fn processer(self: &const Self) -> Crc(T) {
+        pub fn processer(self: &const Self) Crc(T) {
             return Crc(T).init(self);
         }
     };
 }
 
-pub fn Crc(comptime T: type) -> type {
+pub fn Crc(comptime T: type) type {
     return struct {
         const Self = this;
 
         spec: CrcSpec(T),
         remainder: T,
 
-        pub fn init(spec: &const CrcSpec(T)) -> Self {
+        pub fn init(spec: &const CrcSpec(T)) Self {
             return Self {
                 .spec = *spec,
                 .remainder = spec.initial_value,
             };
         }
 
-        fn reflect_if(comptime K: type, ref: bool, data: K) -> K {
+        fn reflect_if(comptime K: type, ref: bool, data: K) K {
             if (ref) {
                 return reflect(K, data);
             } else {
@@ -120,7 +120,7 @@ pub fn Crc(comptime T: type) -> type {
             }
         }
 
-        pub fn update(self: &Self, bytes: []const u8) {
+        pub fn update(self: &Self, bytes: []const u8) void {
             const reflect_data = self.spec.reflect_data;
 
             for (bytes) |byte| {
@@ -129,7 +129,7 @@ pub fn Crc(comptime T: type) -> type {
             }
         }
 
-        pub fn final(self: &const Self) -> T {
+        pub fn final(self: &const Self) T {
             const reflected = reflect_if(T, self.spec.reflect_remainder, self.remainder);
             return reflected ^ self.spec.xor_value;
         }
