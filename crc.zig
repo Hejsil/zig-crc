@@ -86,14 +86,14 @@ pub fn CrcSpec(comptime T: type) type {
             return res;
         }
 
-        pub fn checksum(self: &const Self, bytes: []const u8) T {
-            var crc = self.processer();
+        pub fn checksum(spec: &const Self, bytes: []const u8) T {
+            var crc = spec.processer();
             crc.update(bytes);
             return crc.final();
         }
 
-        pub fn processer(self: &const Self) Crc(T) {
-            return Crc(T).init(self);
+        pub fn processer(spec: &const Self) Crc(T) {
+            return Crc(T).init(spec);
         }
     };
 }
@@ -120,18 +120,18 @@ pub fn Crc(comptime T: type) type {
             }
         }
 
-        pub fn update(self: &Self, bytes: []const u8) void {
-            const reflect_data = self.spec.reflect_data;
+        pub fn update(crc: &Self, bytes: []const u8) void {
+            const reflect_data = crc.spec.reflect_data;
 
             for (bytes) |byte| {
-                const entry = reflect_if(u8, reflect_data, byte) ^ (self.remainder >> (T.bit_count - 8));
-                self.remainder = self.spec.table[entry] ^ math.shl(T, self.remainder, T(8));
+                const entry = reflect_if(u8, reflect_data, byte) ^ (crc.remainder >> (T.bit_count - 8));
+                crc.remainder = crc.spec.table[entry] ^ math.shl(T, crc.remainder, T(8));
             }
         }
 
-        pub fn final(self: &const Self) T {
-            const reflected = reflect_if(T, self.spec.reflect_remainder, self.remainder);
-            return reflected ^ self.spec.xor_value;
+        pub fn final(crc: &const Self) T {
+            const reflected = reflect_if(T, crc.spec.reflect_remainder, crc.remainder);
+            return reflected ^ crc.spec.xor_value;
         }
     };
 }
