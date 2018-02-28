@@ -5,13 +5,13 @@ const debug = std.debug;
 
 const assert = debug.assert;
 
-fn reflect(comptime T: type, data: T) T {
-    var res : T = 0;
+fn reflect(comptime UInt: type, data: UInt) UInt {
+    var res : UInt = 0;
     var tmp = data;
     var bit : usize = 0;
-    while (bit < T.bit_count) : (bit += 1) {
+    while (bit < UInt.bit_count) : (bit += 1) {
         if (tmp & 1 != 0) {
-            res |= math.shl(T, 1, ((T.bit_count - 1) - bit));
+            res |= math.shl(UInt, 1, ((UInt.bit_count - 1) - bit));
         }
 
         tmp >>= 1;
@@ -27,7 +27,7 @@ test "crc.reflect" {
 
 // // 256
 // for (res.table) |*entry, i| {
-//     var crc = T(i) << (T.bit_count - 8);
+//     var crc = UInt(i) << (UInt.bit_count - 8);
 //
 //     // 256 * 8 * (1)
 //     var bit : usize = 0;
@@ -35,9 +35,9 @@ test "crc.reflect" {
 //         // 256 * 8 * (1 + 1)
 //         if (crc & top_bit != 0) {
 //             // 256 * 8 * (1 + 1 + 3)
-//             crc = math.shl(T, crc, T(1)) ^ polynomial;
+//             crc = math.shl(UInt, crc, UInt(1)) ^ polynomial;
 //         } else {
-//             crc = math.shl(T, crc, T(1));
+//             crc = math.shl(UInt, crc, UInt(1));
 //         }
 //     }
 //
@@ -45,18 +45,18 @@ test "crc.reflect" {
 // }
 pub const crcspec_init_backward_cycles = 256 * 8 * (1 + 1 + 3);
 
-pub fn CrcSpec(comptime T: type) type {
+pub fn CrcSpec(comptime UInt: type) type {
     return struct {
         const Self = this;
 
-        polynomial: T,
-        initial_value: T,
-        xor_value: T,
+        polynomial: UInt,
+        initial_value: UInt,
+        xor_value: UInt,
         reflect_data: bool,
         reflect_remainder: bool,
-        table: [256]T,
+        table: [256]UInt,
 
-        pub fn init(polynomial: T, initial_value: T, xor_value: T, reflect_data: bool, reflect_remainder: bool) CrcSpec(T) {
+        pub fn init(polynomial: UInt, initial_value: UInt, xor_value: UInt, reflect_data: bool, reflect_remainder: bool) CrcSpec(UInt) {
             var res = Self {
                 .polynomial = polynomial,
                 .initial_value = initial_value,
@@ -66,17 +66,17 @@ pub fn CrcSpec(comptime T: type) type {
                 .table = undefined,
             };
 
-            const top_bit = T(1) << (T.bit_count - 1);
+            const top_bit = UInt(1) << (UInt.bit_count - 1);
 
             for (res.table) |*entry, i| {
-                var crc = T(i) << (T.bit_count - 8);
+                var crc = UInt(i) << (UInt.bit_count - 8);
 
                 var bit : usize = 0;
                 while (bit < 8) : (bit += 1) {
                     if (crc & top_bit != 0) {
-                        crc = math.shl(T, crc, T(1)) ^ polynomial;
+                        crc = math.shl(UInt, crc, UInt(1)) ^ polynomial;
                     } else {
-                        crc = math.shl(T, crc, T(1));
+                        crc = math.shl(UInt, crc, UInt(1));
                     }
                 }
 
@@ -86,26 +86,26 @@ pub fn CrcSpec(comptime T: type) type {
             return res;
         }
 
-        pub fn checksum(spec: &const Self, bytes: []const u8) T {
+        pub fn checksum(spec: &const Self, bytes: []const u8) UInt {
             var crc = spec.processer();
             crc.update(bytes);
             return crc.final();
         }
 
-        pub fn processer(spec: &const Self) Crc(T) {
-            return Crc(T).init(spec);
+        pub fn processer(spec: &const Self) Crc(UInt) {
+            return Crc(UInt).init(spec);
         }
     };
 }
 
-pub fn Crc(comptime T: type) type {
+pub fn Crc(comptime UInt: type) type {
     return struct {
         const Self = this;
 
-        spec: CrcSpec(T),
-        remainder: T,
+        spec: CrcSpec(UInt),
+        remainder: UInt,
 
-        pub fn init(spec: &const CrcSpec(T)) Self {
+        pub fn init(spec: &const CrcSpec(UInt)) Self {
             return Self {
                 .spec = *spec,
                 .remainder = spec.initial_value,
@@ -124,13 +124,13 @@ pub fn Crc(comptime T: type) type {
             const reflect_data = crc.spec.reflect_data;
 
             for (bytes) |byte| {
-                const entry = reflect_if(u8, reflect_data, byte) ^ (crc.remainder >> (T.bit_count - 8));
-                crc.remainder = crc.spec.table[entry] ^ math.shl(T, crc.remainder, T(8));
+                const entry = reflect_if(u8, reflect_data, byte) ^ (crc.remainder >> (UInt.bit_count - 8));
+                crc.remainder = crc.spec.table[entry] ^ math.shl(UInt, crc.remainder, UInt(8));
             }
         }
 
-        pub fn final(crc: &const Self) T {
-            const reflected = reflect_if(T, crc.spec.reflect_remainder, crc.remainder);
+        pub fn final(crc: &const Self) UInt {
+            const reflected = reflect_if(UInt, crc.spec.reflect_remainder, crc.remainder);
             return reflected ^ crc.spec.xor_value;
         }
     };
