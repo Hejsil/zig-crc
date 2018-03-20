@@ -45,6 +45,18 @@ test "crc.reflect" {
 // }
 pub const crcspec_init_backward_cycles = 256 * 8 * (1 + 1 + 3);
 
+pub const Reflect = struct {
+    pub const Data = enum {
+        True,
+        False,
+    };
+
+    pub const Remainder = enum {
+        True,
+        False,
+    };
+};
+
 pub fn CrcSpec(comptime UInt: type) type {
     return struct {
         const Self = this;
@@ -52,11 +64,11 @@ pub fn CrcSpec(comptime UInt: type) type {
         polynomial: UInt,
         initial_value: UInt,
         xor_value: UInt,
-        reflect_data: bool,
-        reflect_remainder: bool,
+        reflect_data: Reflect.Data,
+        reflect_remainder: Reflect.Remainder,
         table: [256]UInt,
 
-        pub fn init(polynomial: UInt, initial_value: UInt, xor_value: UInt, reflect_data: bool, reflect_remainder: bool) CrcSpec(UInt) {
+        pub fn init(polynomial: UInt, initial_value: UInt, xor_value: UInt, reflect_data: Reflect.Data, reflect_remainder: Reflect.Remainder) CrcSpec(UInt) {
             var res = Self {
                 .polynomial = polynomial,
                 .initial_value = initial_value,
@@ -121,7 +133,7 @@ pub fn Crc(comptime UInt: type) type {
         }
 
         pub fn update(crc: &Self, bytes: []const u8) void {
-            const reflect_data = crc.spec.reflect_data;
+            const reflect_data = crc.spec.reflect_data == Reflect.Data.True;
 
             for (bytes) |byte| {
                 const entry = reflect_if(u8, reflect_data, byte) ^ (crc.remainder >> (UInt.bit_count - 8));
@@ -130,7 +142,8 @@ pub fn Crc(comptime UInt: type) type {
         }
 
         pub fn final(crc: &const Self) UInt {
-            const reflected = reflect_if(UInt, crc.spec.reflect_remainder, crc.remainder);
+            const reflect_remainder = crc.spec.reflect_remainder == Reflect.Remainder.True;
+            const reflected = reflect_if(UInt, reflect_remainder, crc.remainder);
             return reflected ^ crc.spec.xor_value;
         }
     };
@@ -139,7 +152,7 @@ pub fn Crc(comptime UInt: type) type {
 // Specs below gotten from http://reveng.sourceforge.net/crc-catalogue/all.htm
 pub const crc8 = comptime blk: {
     @setEvalBranchQuota(crcspec_init_backward_cycles);
-    break :blk CrcSpec(u8).init(0x07, 0x00, 0x00, false, false);
+    break :blk CrcSpec(u8).init(0x07, 0x00, 0x00, Reflect.Data.False, Reflect.Remainder.False);
 };
 
 test "crc.crc8" {
@@ -148,7 +161,7 @@ test "crc.crc8" {
 
 pub const crc16 = comptime blk: {
     @setEvalBranchQuota(crcspec_init_backward_cycles);
-    break :blk CrcSpec(u16).init(0x8005, 0x0000, 0x0000, true, true);
+    break :blk CrcSpec(u16).init(0x8005, 0x0000, 0x0000, Reflect.Data.True, Reflect.Remainder.True);
 };
 
 test "crc.crc16" {
@@ -157,7 +170,7 @@ test "crc.crc16" {
 
 pub const crc32 = comptime blk: {
     @setEvalBranchQuota(crcspec_init_backward_cycles);
-    break :blk CrcSpec(u32).init(0x04C11DB7, 0xFFFFFFFF, 0xFFFFFFFF, true, true);
+    break :blk CrcSpec(u32).init(0x04C11DB7, 0xFFFFFFFF, 0xFFFFFFFF, Reflect.Data.True, Reflect.Remainder.True);
 };
 
 test "crc.crc32" {
@@ -167,7 +180,7 @@ test "crc.crc32" {
 // TODO: crc64 failes. Figure out why
 //pub const crc64 = comptime blk: {
 //    @setEvalBranchQuota(crcspec_init_backward_cycles);
-//    break :blk CrcSpec(u64).init(0x42F0E1EBA9EA3693, 0x0000000000000000, 0x0000000000000000, false, false);
+//    break :blk CrcSpec(u64).init(0x42F0E1EBA9EA3693, 0x0000000000000000, 0x0000000000000000, Reflect.Data.False, Reflect.Remainder.False);
 //};
 //
 //test "crc.crc64" {
