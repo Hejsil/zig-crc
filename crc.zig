@@ -1,14 +1,14 @@
 const std = @import("std");
 
-const math  = std.math;
+const math = std.math;
 const debug = std.debug;
 
 const assert = debug.assert;
 
 fn reflect(comptime UInt: type, data: UInt) UInt {
-    var res : UInt = 0;
+    var res: UInt = 0;
     var tmp = data;
-    var bit : usize = 0;
+    var bit: usize = 0;
     while (bit < UInt.bit_count) : (bit += 1) {
         if (tmp & 1 != 0) {
             res |= math.shl(UInt, 1, ((UInt.bit_count - 1) - bit));
@@ -69,7 +69,7 @@ pub fn CrcSpec(comptime UInt: type) type {
         table: [256]UInt,
 
         pub fn init(polynomial: UInt, initial_value: UInt, xor_value: UInt, reflect_data: Reflect.Data, reflect_remainder: Reflect.Remainder) CrcSpec(UInt) {
-            var res = Self {
+            var res = Self{
                 .polynomial = polynomial,
                 .initial_value = initial_value,
                 .xor_value = xor_value,
@@ -83,7 +83,7 @@ pub fn CrcSpec(comptime UInt: type) type {
             for (res.table) |*entry, i| {
                 var crc = UInt(i) << (UInt.bit_count - 8);
 
-                var bit : usize = 0;
+                var bit: usize = 0;
                 while (bit < 8) : (bit += 1) {
                     if (crc & top_bit != 0) {
                         crc = math.shl(UInt, crc, UInt(1)) ^ polynomial;
@@ -98,13 +98,13 @@ pub fn CrcSpec(comptime UInt: type) type {
             return res;
         }
 
-        pub fn checksum(spec: &const Self, bytes: []const u8) UInt {
+        pub fn checksum(spec: *const Self, bytes: []const u8) UInt {
             var crc = spec.processer();
             crc.update(bytes);
             return crc.final();
         }
 
-        pub fn processer(spec: &const Self) Crc(UInt) {
+        pub fn processer(spec: *const Self) Crc(UInt) {
             return Crc(UInt).init(spec);
         }
     };
@@ -117,8 +117,8 @@ pub fn Crc(comptime UInt: type) type {
         spec: CrcSpec(UInt),
         remainder: UInt,
 
-        pub fn init(spec: &const CrcSpec(UInt)) Self {
-            return Self {
+        pub fn init(spec: *const CrcSpec(UInt)) Self {
+            return Self{
                 .spec = spec.*,
                 .remainder = spec.initial_value,
             };
@@ -132,7 +132,7 @@ pub fn Crc(comptime UInt: type) type {
             }
         }
 
-        pub fn update(crc: &Self, bytes: []const u8) void {
+        pub fn update(crc: *Self, bytes: []const u8) void {
             const reflect_data = crc.spec.reflect_data == Reflect.Data.True;
 
             for (bytes) |byte| {
@@ -141,7 +141,7 @@ pub fn Crc(comptime UInt: type) type {
             }
         }
 
-        pub fn final(crc: &const Self) UInt {
+        pub fn final(crc: *const Self) UInt {
             const reflect_remainder = crc.spec.reflect_remainder == Reflect.Remainder.True;
             const reflected = reflect_if(UInt, reflect_remainder, crc.remainder);
             return reflected ^ crc.spec.xor_value;
