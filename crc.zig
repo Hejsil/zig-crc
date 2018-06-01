@@ -92,7 +92,7 @@ pub fn CrcSpec(comptime UInt: type) type {
                     }
                 }
 
-                *entry = crc;
+                entry.* = crc;
             }
 
             return res;
@@ -119,7 +119,7 @@ pub fn Crc(comptime UInt: type) type {
 
         pub fn init(spec: &const CrcSpec(UInt)) Self {
             return Self {
-                .spec = *spec,
+                .spec = spec.*,
                 .remainder = spec.initial_value,
             };
         }
