@@ -98,13 +98,13 @@ pub fn CrcSpec(comptime UInt: type) type {
             return res;
         }
 
-        pub fn checksum(spec: *const Self, bytes: []const u8) UInt {
+        pub fn checksum(spec: Self, bytes: []const u8) UInt {
             var crc = spec.processer();
             crc.update(bytes);
             return crc.final();
         }
 
-        pub fn processer(spec: *const Self) Crc(UInt) {
+        pub fn processer(spec: Self) Crc(UInt) {
             return Crc(UInt).init(spec);
         }
     };
@@ -117,9 +117,9 @@ pub fn Crc(comptime UInt: type) type {
         spec: CrcSpec(UInt),
         remainder: UInt,
 
-        pub fn init(spec: *const CrcSpec(UInt)) Self {
+        pub fn init(spec: CrcSpec(UInt)) Self {
             return Self{
-                .spec = spec.*,
+                .spec = spec,
                 .remainder = spec.initial_value,
             };
         }
@@ -141,7 +141,7 @@ pub fn Crc(comptime UInt: type) type {
             }
         }
 
-        pub fn final(crc: *const Self) UInt {
+        pub fn final(crc: Self) UInt {
             const reflect_remainder = crc.spec.reflect_remainder == Reflect.Remainder.True;
             const reflected = reflect_if(UInt, reflect_remainder, crc.remainder);
             return reflected ^ crc.spec.xor_value;
@@ -177,12 +177,11 @@ test "crc.crc32" {
     assert(crc32.checksum("123456789") == 0xCBF43926);
 }
 
-// TODO: crc64 failes. Figure out why
-//pub const crc64 = comptime blk: {
-//    @setEvalBranchQuota(crcspec_init_backward_cycles);
-//    break :blk CrcSpec(u64).init(0x42F0E1EBA9EA3693, 0x0000000000000000, 0x0000000000000000, Reflect.Data.False, Reflect.Remainder.False);
-//};
-//
-//test "crc.crc64" {
-//    assert(crc64.checksum("123456789") == 0x6C40DF5F0B497347);
-//}
+pub const crc64 = comptime blk: {
+    @setEvalBranchQuota(crcspec_init_backward_cycles);
+    break :blk CrcSpec(u64).init(0x42F0E1EBA9EA3693, 0x0000000000000000, 0x0000000000000000, Reflect.Data.False, Reflect.Remainder.False);
+};
+
+test "crc.crc64" {
+    assert(crc64.checksum("123456789") == 0x6C40DF5F0B497347);
+}
