@@ -81,7 +81,7 @@ pub fn CrcSpec(comptime UInt: type) type {
             const top_bit = UInt(1) << (UInt.bit_count - 1);
 
             for (res.table) |*entry, i| {
-                var crc = UInt(i) << (UInt.bit_count - 8);
+                var crc = @intCast(UInt, i) << (UInt.bit_count - 8);
 
                 var bit: usize = 0;
                 while (bit < 8) : (bit += 1) {
