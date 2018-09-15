@@ -59,7 +59,7 @@ pub const Reflect = struct {
 
 pub fn CrcSpec(comptime UInt: type) type {
     return struct {
-        const Self = this;
+        const Self = @This();
 
         polynomial: UInt,
         initial_value: UInt,
@@ -112,7 +112,7 @@ pub fn CrcSpec(comptime UInt: type) type {
 
 pub fn Crc(comptime UInt: type) type {
     return struct {
-        const Self = this;
+        const Self = @This();
 
         spec: CrcSpec(UInt),
         remainder: UInt,
