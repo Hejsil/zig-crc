@@ -1,9 +1,7 @@
 const std = @import("std");
 
 const math = std.math;
-const debug = std.debug;
-
-const assert = debug.assert;
+const testing = std.testing;
 
 fn reflect(comptime UInt: type, data: UInt) UInt {
     var res: UInt = 0;
@@ -21,8 +19,8 @@ fn reflect(comptime UInt: type, data: UInt) UInt {
 }
 
 test "crc.reflect" {
-    assert(reflect(u8, 0b00000001) == 0b10000000);
-    assert(reflect(u8, 0b10000000) == 0b00000001);
+    testing.expectEqual(u8(0b10000000), reflect(u8, 0b00000001));
+    testing.expectEqual(u8(0b00000001), reflect(u8, 0b10000000));
 }
 
 // // 256
@@ -156,7 +154,7 @@ pub const crc8 = comptime blk: {
 };
 
 test "crc.crc8" {
-    assert(crc8.checksum("123456789") == 0xF4);
+    testing.expectEqual(u8(0xF4), crc8.checksum("123456789"));
 }
 
 pub const crc16 = comptime blk: {
@@ -165,7 +163,7 @@ pub const crc16 = comptime blk: {
 };
 
 test "crc.crc16" {
-    assert(crc16.checksum("123456789") == 0xBB3D);
+    testing.expectEqual(u16(0xBB3D), crc16.checksum("123456789"));
 }
 
 pub const crc32 = comptime blk: {
@@ -174,7 +172,7 @@ pub const crc32 = comptime blk: {
 };
 
 test "crc.crc32" {
-    assert(crc32.checksum("123456789") == 0xCBF43926);
+    testing.expectEqual(u32(0xCBF43926), crc32.checksum("123456789"));
 }
 
 pub const crc64 = comptime blk: {
@@ -183,5 +181,5 @@ pub const crc64 = comptime blk: {
 };
 
 test "crc.crc64" {
-    assert(crc64.checksum("123456789") == 0x6C40DF5F0B497347);
+    testing.expectEqual(u64(0x6C40DF5F0B497347), crc64.checksum("123456789"));
 }
