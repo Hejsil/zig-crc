@@ -19,29 +19,11 @@ fn reflect(comptime UInt: type, data: UInt) UInt {
 }
 
 test "crc.reflect" {
-    testing.expectEqual(u8(0b10000000), reflect(u8, 0b00000001));
-    testing.expectEqual(u8(0b00000001), reflect(u8, 0b10000000));
+    testing.expectEqual(@as(u8, 0b10000000), reflect(u8, 0b00000001));
+    testing.expectEqual(@as(u8, 0b00000001), reflect(u8, 0b10000000));
 }
 
-// // 256
-// for (res.table) |*entry, i| {
-//     var crc = UInt(i) << (UInt.bit_count - 8);
-//
-//     // 256 * 8 * (1)
-//     var bit : usize = 0;
-//     while (bit < 8) : (bit += 1) {
-//         // 256 * 8 * (1 + 1)
-//         if (crc & top_bit != 0) {
-//             // 256 * 8 * (1 + 1 + 3)
-//             crc = math.shl(UInt, crc, UInt(1)) ^ polynomial;
-//         } else {
-//             crc = math.shl(UInt, crc, UInt(1));
-//         }
-//     }
-//
-//     *entry = crc;
-// }
-pub const crcspec_init_backward_cycles = 256 * 8 * (1 + 1 + 3);
+pub const crcspec_init_backward_cycles = 20000;
 
 pub const Reflect = struct {
     pub const Data = enum {
@@ -76,7 +58,7 @@ pub fn CrcSpec(comptime UInt: type) type {
                 .table = undefined,
             };
 
-            const top_bit = UInt(1) << (UInt.bit_count - 1);
+            const top_bit = @as(UInt, 1) << (UInt.bit_count - 1);
 
             for (res.table) |*entry, i| {
                 var crc = @intCast(UInt, i) << (UInt.bit_count - 8);
@@ -84,9 +66,9 @@ pub fn CrcSpec(comptime UInt: type) type {
                 var bit: usize = 0;
                 while (bit < 8) : (bit += 1) {
                     if (crc & top_bit != 0) {
-                        crc = math.shl(UInt, crc, UInt(1)) ^ polynomial;
+                        crc = math.shl(UInt, crc, @as(UInt, 1)) ^ polynomial;
                     } else {
-                        crc = math.shl(UInt, crc, UInt(1));
+                        crc = math.shl(UInt, crc, @as(UInt, 1));
                     }
                 }
 
@@ -135,7 +117,7 @@ pub fn Crc(comptime UInt: type) type {
 
             for (bytes) |byte| {
                 const entry = reflect_if(u8, reflect_data, byte) ^ (crc.remainder >> (UInt.bit_count - 8));
-                crc.remainder = crc.spec.table[entry] ^ math.shl(UInt, crc.remainder, UInt(8));
+                crc.remainder = crc.spec.table[entry] ^ math.shl(UInt, crc.remainder, @as(UInt, 8));
             }
         }
 
@@ -154,7 +136,7 @@ pub const crc8 = comptime blk: {
 };
 
 test "crc.crc8" {
-    testing.expectEqual(u8(0xF4), crc8.checksum("123456789"));
+    testing.expectEqual(@as(u8, 0xF4), crc8.checksum("123456789"));
 }
 
 pub const crc16 = comptime blk: {
@@ -163,7 +145,7 @@ pub const crc16 = comptime blk: {
 };
 
 test "crc.crc16" {
-    testing.expectEqual(u16(0xBB3D), crc16.checksum("123456789"));
+    testing.expectEqual(@as(u16, 0xBB3D), crc16.checksum("123456789"));
 }
 
 pub const crc32 = comptime blk: {
@@ -172,7 +154,7 @@ pub const crc32 = comptime blk: {
 };
 
 test "crc.crc32" {
-    testing.expectEqual(u32(0xCBF43926), crc32.checksum("123456789"));
+    testing.expectEqual(@as(u32, 0xCBF43926), crc32.checksum("123456789"));
 }
 
 pub const crc64 = comptime blk: {
@@ -181,5 +163,5 @@ pub const crc64 = comptime blk: {
 };
 
 test "crc.crc64" {
-    testing.expectEqual(u64(0x6C40DF5F0B497347), crc64.checksum("123456789"));
+    testing.expectEqual(@as(u64, 0x6C40DF5F0B497347), crc64.checksum("123456789"));
 }
