@@ -92,7 +92,7 @@ pub fn Crc(comptime UInt: type) type {
             for (bytes) |byte| {
                 const reflected_byte = reflectIf(u8, crc.spec.reflect_data, byte);
                 const entry = reflected_byte ^ (crc.remainder >> (bits - 8));
-                crc.remainder = crc.spec.table[entry] ^ math.shl(UInt, crc.remainder, @as(UInt, 8));
+                crc.remainder = crc.spec.table[entry] ^ math.shl(UInt, crc.remainder, 8);
             }
         }
 
