@@ -44,7 +44,7 @@ pub fn Spec(comptime UInt: type) type {
             const bits = @typeInfo(UInt).Int.bits;
             const top_bit = @as(UInt, 1) << (bits - 1);
 
-            for (res.table) |*entry, i| {
+            for (&res.table, 0..) |*entry, i| {
                 var crc = @intCast(UInt, i) << (bits - 8);
 
                 var bit: usize = 0;
